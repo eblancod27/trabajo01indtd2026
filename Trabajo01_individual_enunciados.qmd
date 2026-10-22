@@ -1,0 +1,155 @@
+---
+title: "Trabajo 01 (Individual): Teoría de la Decisión bajo Incertidumbre"
+subtitle: "Documento 1 de 2 — Enunciados de los problemas"
+author: "Esteban Blanco Díaz"
+date: 2026-10-21
+date-format: "DD/MM/YYYY"
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+    df-print: kable
+    embed-resources: true
+  typst:
+    fig-format: png
+    toc: true
+    number-sections: true
+    df-print: kable
+    papersize: a4
+---
+
+Este documento contiene **únicamente los enunciados** de los dos problemas de Teoría de la
+Decisión bajo Incertidumbre propuestos en el trabajo individual.
+
+Las soluciones, con la ayuda del código R de la asignatura (el paquete `TDecisionCodigo`,
+disponible en <https://github.com/calote/TDecisionCodigo>), se encuentran en el
+**documento 2 de 2**: *Trabajo 01 (individual): Enunciados y soluciones*.
+
+# Problema 1: decisión de una delegación (datos inventados)
+
+## Enunciado
+
+La dirección de *Estudio Otto S.L.*, una empresa de arquitectura, debe decidir
+**en qué ciudad abrir su nueva delegación**. Las cuatro ciudades candidatas son las
+alternativas $d_1, d_2, d_3$ y $d_4$.
+
+Los tres **estados de la naturaleza** representan los escenarios de demanda que pueden darse
+durante el primer año de actividad de la delegación:
+
+- $e_1$: demanda **alta**;
+- $e_2$: demanda **media**;
+- $e_3$: demanda **baja**.
+
+La decisión se plantea en dos apartados, porque la dirección ha preparado dos estudios
+distintos del mismo proyecto.
+
+### Apartado (a): situación favorable (beneficios)
+
+La dirección dispone de un estudio de **beneficio neto** (ingresos menos gastos de
+explotación) esperado para el primer año, expresado en **miles de euros**:
+
+| Alternativa | $e_1$ (demanda alta) | $e_2$ (demanda media) | $e_3$ (demanda baja) |
+|:------------|---------------------:|----------------------:|---------------------:|
+| $d_1$ | 125 | 95  | 70 |
+| $d_2$ | 100 | 115 | 50 |
+| $d_3$ | 85  | 85  | 85 |
+| $d_4$ | 145 | 60  | 40 |
+
+**Se pide:**
+
+1. Aplicar **cada uno de los seis criterios** de decisión bajo incertidumbre, de forma
+   **individual** (un criterio cada vez), a la tabla anterior, en **situación favorable**:
+   Wald (o pesimista), Optimista (o maximax), Hurwicz, Savage, Laplace y Punto Ideal.
+2. Justificar cuál es la **alternativa óptima** según cada criterio y qué **alternativa
+   resulta óptima con mayor número de criterios** (criterio de votación).
+3. Estudiar el **criterio de Hurwicz** de forma completa: obtener los intervalos de $\alpha$
+   en los que cada alternativa es óptima, e indicar los **puntos de corte**.
+
+### Apartado (b): situación desfavorable (costes)
+
+La dirección dispone además de un estudio del **coste total de apertura** (inversión
+inicial más gastos de puesta en marcha) de la delegación en cada ciudad, también en **miles
+de euros**:
+
+| Alternativa | $e_1$ (demanda alta) | $e_2$ (demanda media) | $e_3$ (demanda baja) |
+|:------------|---------------------:|----------------------:|---------------------:|
+| $d_1$ | 250 | 300 | 340 |
+| $d_2$ | 220 | 280 | 400 |
+| $d_3$ | 300 | 260 | 310 |
+| $d_4$ | 400 | 230 | 290 |
+
+**Se pide:**
+
+1. Aplicar **cada uno de los seis criterios** de decisión bajo incertidumbre, de forma
+   **individual** (un criterio cada vez), a la tabla anterior, en **situación desfavorable**.
+2. Justificar cuál es la **alternativa óptima** según cada criterio y qué **alternativa
+   resulta óptima con mayor número de criterios**.
+3. Estudiar el **criterio de Hurwicz** de forma completa: obtener los intervalos de $\alpha$
+   en los que cada alternativa es óptima, e indicar los **puntos de corte**.
+
+## Preguntas de verdadero o falso (Problema 1)
+
+Responda con **Verdadero** o **Falso** a cada una de las cinco afirmaciones siguientes.
+
+1. En el apartado (a), el criterio de **Wald** determina como alternativa óptima $d_3$.
+2. En el apartado (a), el criterio de **Laplace** determina como alternativa óptima $d_4$.
+3. En el apartado (b), el criterio de **Savage** determina como alternativa óptima $d_1$.
+4. En el apartado (b), la alternativa $d_2$ es la óptima con el criterio de **Hurwicz** para
+   todo $\alpha \in (0,1]$.
+5. En el apartado (b), $d_3$ es la alternativa que resulta óptima con el **mayor número de
+   criterios** (4 de los 6).
+
+# Problema 2: gestión de la flota de reparto
+
+## Enunciado
+
+Una **empresa española de distribución de alimentación congelada** debe decidir **cómo gestionar
+su flota de reparto** en el área metropolitana en la que opera. Se barajan tres alternativas:
+
+- $d_1$: **flota propia** (camionetas frigoríficas de la empresa y conductores de plantilla);
+- $d_2$: **renting** (camionetas en régimen de alquiler a largo plazo con un conductor de
+  seguridad externo);
+- $d_3$: **subcontratación** del reparto a empresas de transporte..
+
+Los tres **estados de la naturaleza** son los escenarios de **demanda** (volumen de pedidos
+servidos al año) que pueden darse:
+
+- $e_1$: demanda **baja**;
+- $e_2$: demanda **media**;
+- $e_3$: demanda **alta**.
+
+El **coste anual total** (€) de cada alternativa en cada escenario, según los datos
+facilitados por la dirección financiera, es:
+
+| Alternativa | $e_1$ (demanda baja) | $e_2$ (demanda media) | $e_3$ (demanda alta) |
+|:------------|----------------------:|-----------------------:|----------------------:|
+| $d_1$ Flota propia | 320 000 | 380 000 | 450 000 |
+| $d_2$ Renting | 300 000 | 330 000 | 420 000 |
+| $d_3$ Subcontratación | 250 000 | 400 000 | 600 000 |
+
+**Se pide:**
+
+1. Resolver el problema con la **función R que devuelve la resolución de todos los métodos en
+   una única tabla** (`criterio.Todos`), en **situación desfavorable**, con
+   $\alpha = 0{,}5$.
+2. Interpretar la tabla de resultados obtenida: indicar la **alternativa óptima** según cada
+   criterio y la **alternativa que resulta óptima con mayor número de criterios**.
+3. Explicar **por qué** la alternativa más veces óptima es la que la dirección debería
+   recomendar, teniendo en cuenta el sentido económico de cada alternativa.
+4. Estudiar el **criterio de Hurwicz** de forma completa: obtener los intervalos de $\alpha$ en
+   los que cada alternativa es óptima e indicar los **puntos de corte**. ¿A partir de qué
+   grado de optimismo cambiaría la recomendación?
+
+## Preguntas de verdadero o falso (Problema 2)
+
+Responda con **Verdadero** o **Falso** a cada una de las cinco afirmaciones siguientes.
+
+1. El criterio de **Wald** (pesimista) recomienda el **renting** ($d_2$).
+2. El criterio de **Laplace** recomienda la **flota propia** ($d_1$).
+3. El criterio de **Optimista** recomienda la **subcontratación** ($d_3$).
+4. Con el criterio de **Hurwicz**, la **subcontratación** ($d_3$) es la alternativa óptima para
+   todo $\alpha \in (0,1]$.
+5. La **flota propia** ($d_1$) no es la alternativa óptima con **ningún** criterio.
