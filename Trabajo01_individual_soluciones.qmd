@@ -1,0 +1,771 @@
+---
+title: "Trabajo 01 (Individual): Teoría de la Decisión bajo Incertidumbre"
+subtitle: "Documento 2 de 2 — Enunciados y soluciones"
+author: "Esteban Blanco Díaz"
+date: 2026-10-21
+date-format: "DD/MM/YYYY"
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+    df-print: kable
+    embed-resources: true
+  typst:
+    fig-format: png
+    toc: true
+    number-sections: true
+    df-print: kable
+    papersize: a4
+---
+
+Este documento contiene los **enunciados** de los dos problemas de Teoría de la Decisión bajo
+Incertidumbre y, a continuación, su **resolución paso a paso** con la ayuda del código R
+utilizado en la asignatura.
+
+El documento 1 de 2, que contiene **solo los enunciados**, es
+*Trabajo 01 (individual): Enunciados de los problemas*.
+
+# Preparación: instalación y carga del código R
+
+Todas las funciones de decisión bajo incertidumbre de la asignatura están disponibles en el
+**paquete R `TDecisionCodigo`**, que está en GitHub. Se instala una sola vez con `remotes`:
+
+```{r instalar-paquete, eval=FALSE}
+#install.packages("remotes")
+remotes::install_github("calote/TDecisionCodigo")
+```
+
+Una vez instalado, basta con cargarlo con `library()` para tener disponibles **todas** las
+funciones de la asignatura:
+
+```{r cargar-paquete}
+library(TDecisionCodigo)
+```
+
+
+## Guía rápida de las funciones que se van a usar
+
+| Función R | Criterio | Qué devuelve |
+|:----------|:---------|:-------------|
+| `crea.tablaX(v, numalternativas, numestados, nb_alternativas, nb_estados)` | — | Construye la matriz de decisión a partir de un vector escrito **por filas** |
+| `criterio.Wald(tablaX, favorable)` | Wald o pesimista | `ValorAlternativas` (peor caso de cada alternativa) y `AlternativaOptima` |
+| `criterio.Optimista(tablaX, favorable)` | Optimista | `ValorAlternativas` (mejor caso de cada alternativa) y `AlternativaOptima` |
+| `criterio.Hurwicz(tablaX, alfa, favorable)` | Hurwicz | `ValorAlternativas` (valor de Hurwicz de cada alternativa) y `AlternativaOptima` |
+| `criterio.Savage(tablaX, favorable)` | Savage (regret) | `ValorAlternativas` (máximo regret de cada alternativa) y `AlternativaOptima` |
+| `criterio.Laplace(tablaX, favorable)` | Laplace (equiprobabilidad) | `ValorAlternativas` (media de cada alternativa) y `AlternativaOptima` |
+| `criterio.PuntoIdeal(tablaX, favorable)` | Punto ideal (distancia euclídea) | `ValorAlternativas` (distancia de cada alternativa al punto ideal) y `AlternativaOptima` |
+| `criterio.Todos(tablaX, alfa, favorable)` | Todos a la vez | **Una sola tabla** con la decisión, el valor de cada criterio y la alternativa óptima de cada criterio |
+| `dibuja.criterio.Hurwicz_Intervalos(tablaX, favorable)` | Hurwicz | `$IntervalosAlfa` (tramos de $\alpha$ y alternativa óptima) y `$PuntosDeCorte` |
+
+> **Nota sobre el argumento `favorable`.** Cuando `favorable = TRUE` la tabla contiene
+> **beneficios** y se **maximiza** el valor de cada criterio. Cuando `favorable = FALSE` la
+> tabla contiene **costes** y se **minimiza**.
+
+# Problema 1: decisión de una delegación (datos inventados)
+
+## Enunciado
+
+La dirección de *Estudio Otto S.L.*, una empresa de arquitectura*, debe decidir
+**en qué ciudad abrir su nueva delegación**. Las cuatro ciudades candidatas son las
+alternativas $d_1, d_2, d_3$ y $d_4$.
+
+Los tres **estados de la naturaleza** representan los escenarios de demanda que pueden darse
+durante el primer año de actividad de la delegación:
+
+- $e_1$: demanda **alta**;
+- $e_2$: demanda **media**;
+- $e_3$: demanda **baja**.
+
+### Apartado (a): situación favorable (beneficios)
+
+Beneficio neto (ingresos menos gastos de explotación) esperado para el primer año, en **miles
+de euros**:
+
+| Alternativa | $e_1$ (demanda alta) | $e_2$ (demanda media) | $e_3$ (demanda baja) |
+|:------------|---------------------:|----------------------:|---------------------:|
+| $d_1$ | 125 | 95  | 70 |
+| $d_2$ | 100 | 115 | 50 |
+| $d_3$ | 85  | 85  | 85 |
+| $d_4$ | 145 | 60  | 40 |
+
+Se pide aplicar **cada uno de los seis criterios, de forma individual**, en **situación
+favorable**, justificar la alternativa óptima de cada uno, ver qué alternativa resulta óptima
+con más criterios y estudiar el criterio de Hurwicz en todo el rango $\alpha \in (0,1)$.
+
+### Apartado (b): situación desfavorable (costes)
+
+Coste total de apertura (inversión inicial más puesta en marcha) de la delegación en cada
+ciudad, también en **miles de euros**:
+
+| Alternativa | $e_1$ (demanda alta) | $e_2$ (demanda media) | $e_3$ (demanda baja) |
+|:------------|---------------------:|----------------------:|---------------------:|
+| $d_1$ | 250 | 300 | 340 |
+| $d_2$ | 220 | 280 | 400 |
+| $d_3$ | 300 | 260 | 310 |
+| $d_4$ | 400 | 230 | 290 |
+
+Se pide aplicar **cada uno de los seis criterios, de forma individual**, en **situación
+desfavorable**, justificar la alternativa óptima de cada uno, ver qué alternativa resulta
+óptima con más criterios y estudiar el criterio de Hurwicz en todo el rango $\alpha \in (0,1)$.
+
+## Preparación de los datos en R
+
+Se construyen las dos matrices de decisión. Los datos se introducen **por filas**, es decir, la
+primera fila del vector corresponde a $d_1$, la segunda a $d_2$, etc.
+
+```{r preparar-datos}
+## Apartado (a): situación favorable (beneficios)
+dat1a <- crea.tablaX(c(125, 95, 70,
+                      100, 115, 50,
+                      85, 85, 85,
+                      145, 60, 40),
+                    numalternativas = 4,
+                    numestados = 3,
+                    nb_alternativas = c("d1", "d2", "d3", "d4"),
+                    nb_estados = c("e1 alta", "e2 media", "e3 baja"))
+
+## Apartado (b): situación desfavorable (costes)
+dat1b <- crea.tablaX(c(250, 300, 340,
+                      220, 280, 400,
+                      300, 260, 310,
+                      400, 230, 290),
+                    numalternativas = 4,
+                    numestados = 3,
+                    nb_alternativas = c("d1", "d2", "d3", "d4"),
+                    nb_estados = c("e1 alta", "e2 media", "e3 baja"))
+
+dat1a
+dat1b
+```
+
+## Apartado (a): situación favorable
+
+### 1. Criterio de Wald (maximin)
+
+**Idea.** Es el criterio del pesimista. Para cada alternativa se calcula su **peor caso**
+(mínimo de la fila) y se elige la alternativa cuyo peor caso es **el mejor de todos**.
+
+$$
+W_i = \min_j\, x_{ij}, \qquad d^* = \arg\max_i W_i
+$$
+
+**Cálculo manual.** Peor caso de cada alternativa:
+
+- $d_1$: $\min(125, 95, 70) = 70$
+- $d_2$: $\min(100, 115, 50) = 50$
+- $d_3$: $\min(85, 85, 85) = 85$
+- $d_4$: $\min(145, 60, 40) = 40$
+
+El mayor de los cuatro peores casos es $85$, luego **la alternativa óptima es $d_3$**: es la
+única que garantiza al menos 85 mil euros incluso en el peor escenario.
+
+```{r wald-1a}
+res <- criterio.Wald(dat1a, favorable = TRUE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 2. Criterio Optimista (maximax)
+
+**Idea.** Es el criterio del optimista. Se toma el **mejor caso** (máximo de la fila) de cada
+alternativa y se elige la alternativa con el mejor de esos mejores casos.
+
+$$
+M_i = \max_j\, x_{ij}, \qquad d^* = \arg\max_i M_i
+$$
+
+**Cálculo manual.** Mejor caso de cada alternativa:
+
+- $d_1$: $\max(125, 95, 70) = 125$
+- $d_2$: $\max(100, 115, 50) = 115$
+- $d_3$: $\max(85, 85, 85) = 85$
+- $d_4$: $\max(145, 60, 40) = 145$
+
+El mayor es $145$, luego **la alternativa óptima es $d_4$**.
+
+```{r optimista-1a}
+res <- criterio.Optimista(dat1a, favorable = TRUE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 3. Criterio de Hurwicz ($\alpha = 0{,}3$)
+
+**Idea.** Es un criterio intermedio: combina el mejor y el peor caso con un factor de optimismo
+$\alpha \in (0,1)$. Con $\alpha = 0$ se reduce al criterio de Wald y con $\alpha = 1$ al
+optimista.
+
+$$
+H_i(\alpha) = \alpha \cdot M_i + (1-\alpha)\cdot W_i, \qquad d^* = \arg\max_i H_i(\alpha)
+$$
+
+**Cálculo manual** con $\alpha = 0{,}3$ (y $1-\alpha = 0{,}7$):
+
+- $d_1$: $0{,}3 \cdot 125 + 0{,}7 \cdot 70 = 37{,}5 + 49 = 86{,}5$
+- $d_2$: $0{,}3 \cdot 115 + 0{,}7 \cdot 50 = 34{,}5 + 35 = 69{,}5$
+- $d_3$: $0{,}3 \cdot 85 + 0{,}7 \cdot 85 = 85$
+- $d_4$: $0{,}3 \cdot 145 + 0{,}7 \cdot 40 = 43{,}5 + 28 = 71{,}5$
+
+El mayor valor es $86{,}5$, luego **la alternativa óptima es $d_1$**.
+
+```{r hurwicz-1a}
+res <- criterio.Hurwicz(dat1a, alfa = 0.3, favorable = TRUE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 4. Criterio de Savage (minimax del regret)
+
+**Idea.** Se construye la matriz de **regret** (o *arrepentimiento*) $r_{ij} = \max_i x_{ij} - x_{ij}$:
+cuánto se pierde, en cada estado, con respecto a la mejor alternativa posible en ese estado.
+Después se aplica Wald (minimax) a esa matriz de regret.
+
+**Cálculo manual.** Mejor valor en cada estado (por columna):
+
+- $e_1$: $\max(125, 100, 85, 145) = 145$ (lo consigue $d_4$)
+- $e_2$: $\max(95, 115, 85, 60) = 115$ (lo consigue $d_2$)
+- $e_3$: $\max(70, 50, 85, 40) = 85$ (lo consigue $d_3$)
+
+Matriz de regret $r_{ij}$:
+
+| | $e_1$ | $e_2$ | $e_3$ | Máx. regret |
+|:--|------:|------:|------:|------------:|
+| $d_1$ | $145-125=20$ | $115-95=20$ | $85-70=15$ | **20** |
+| $d_2$ | $145-100=45$ | $115-115=0$ | $85-50=35$ | **45** |
+| $d_3$ | $145-85=60$ | $115-85=30$ | $85-85=0$ | **60** |
+| $d_4$ | $145-145=0$ | $115-60=55$ | $85-40=45$ | **55** |
+
+El menor de los máximos de regret es $20$, luego **la alternativa óptima es $d_1$**.
+
+```{r savage-1a}
+res <- criterio.Savage(dat1a, favorable = TRUE)
+res$Mejores        # mejor valor de cada estado (por columna)
+res$Pesos          # matriz de regret
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 5. Criterio de Laplace (equiprobabilidad)
+
+**Idea.** Se supone que los estados son equiprobables, de modo que el valor de cada alternativa
+es su **media aritmética**; se elige la mayor (o la menor, en costes).
+
+$$
+L_i = \frac{1}{m}\sum_{j=1}^{m} x_{ij}, \qquad d^* = \arg\max_i L_i
+$$
+
+**Cálculo manual.** Media de cada alternativa:
+
+- $d_1$: $(125 + 95 + 70)/3 = 290/3 \approx 96{,}67$
+- $d_2$: $(100 + 115 + 50)/3 = 265/3 \approx 88{,}33$
+- $d_3$: $(85 + 85 + 85)/3 = 85$
+- $d_4$: $(145 + 60 + 40)/3 = 245/3 \approx 81{,}67$
+
+La mayor media es $96{,}67$, luego **la alternativa óptima es $d_1$**.
+
+```{r laplace-1a}
+res <- criterio.Laplace(dat1a, favorable = TRUE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 6. Criterio del Punto Ideal
+
+**Idea.** Se construye el **punto ideal** (el mejor resultado posible en cada estado) y se
+elige la alternativa cuya **distancia euclídea** a ese punto es menor.
+
+$$
+x^* = (\max_j x_{1j},\ldots,\max_j x_{mj}), \qquad
+d_i = \sqrt{\sum_{j=1}^{m} (x_{ij} - x^*_j)^2}, \qquad d^* = \arg\min_i d_i
+$$
+
+**Cálculo manual.** Punto ideal: $x^* = (145, 115, 85)$. Distancias:
+
+- $d_1$: $\sqrt{(125-145)^2 + (95-115)^2 + (70-85)^2} = \sqrt{400+400+225} = \sqrt{1025} \approx 32{,}02$
+- $d_2$: $\sqrt{(100-145)^2 + 0^2 + (50-85)^2} = \sqrt{2025+1225} = \sqrt{3250} \approx 57{,}01$
+- $d_3$: $\sqrt{(85-145)^2 + (85-115)^2 + 0^2} = \sqrt{3600+900} = \sqrt{4500} \approx 67{,}08$
+- $d_4$: $\sqrt{0^2 + (60-115)^2 + (40-85)^2} = \sqrt{3025+2025} = \sqrt{5050} \approx 71{,}06$
+
+La menor distancia es $32{,}02$, luego **la alternativa óptima es $d_1$**.
+
+```{r puntoideal-1a}
+res <- criterio.PuntoIdeal(dat1a, favorable = TRUE)
+res$Mejores        # punto ideal
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 7. Votación de los criterios (apartado a)
+
+```{r votacion-1a}
+cri <- list(Wald      = criterio.Wald(dat1a, TRUE)$AlternativaOptima,
+            Optimista = criterio.Optimista(dat1a, TRUE)$AlternativaOptima,
+            Hurwicz   = criterio.Hurwicz(dat1a, 0.3, TRUE)$AlternativaOptima,
+            Savage    = criterio.Savage(dat1a, TRUE)$AlternativaOptima,
+            Laplace   = criterio.Laplace(dat1a, TRUE)$AlternativaOptima,
+            PuntoIdeal= criterio.PuntoIdeal(dat1a, TRUE)$AlternativaOptima)
+data.frame(Criterio = names(cri), Alternativa = as.character(cri))
+```
+
+| Criterio | Alternativa óptima |
+|:---------|:--------------------|
+| Wald | $d_3$ |
+| Optimista | $d_4$ |
+| Hurwicz ($\alpha=0{,}3$) | $d_1$ |
+| Savage | $d_1$ |
+| Laplace | $d_1$ |
+| Punto Ideal | $d_1$ |
+
+**Conclusión del apartado (a).** La alternativa $d_1$ es óptima con **cuatro** de los seis
+criterios (Hurwicz, Savage, Laplace y Punto Ideal) y es la más veces óptima. Solo el criterio
+de Wald se decanta por $d_3$ (la más segura pero con menor rendimiento esperado) y el
+optimista por $d_4$ (la más rentable si la demanda acompaña). Si la dirección quiere una
+recomendación razonable, **debería abrir la delegación en la ciudad $d_1$**.
+
+### 8. Hurwicz en todo el rango $\alpha \in (0,1)$
+
+**Idea.** El valor de Hurwicz de cada alternativa es una **función lineal de $\alpha$**:
+
+$$
+H_i(\alpha) = \alpha\,M_i + (1-\alpha)\,W_i = W_i + \alpha\,(M_i - W_i)
+$$
+
+Es decir, cada alternativa es una recta que pasa por $(0, W_i)$ y $(1, M_i)$. La alternativa
+óptima es la de mayor ordenada para cada $\alpha$, y los **puntos de corte** son los valores de
+$\alpha$ en los que dos rectas se cruzan.
+
+Rectas del apartado (a):
+
+- $d_1$: $H_1(\alpha) = 70 + 55\alpha$
+- $d_2$: $H_2(\alpha) = 50 + 65\alpha$
+- $d_3$: $H_3(\alpha) = 85$ (constante, porque todos sus valores son iguales)
+- $d_4$: $H_4(\alpha) = 40 + 105\alpha$
+
+Cortes relevantes (se igualan las rectas y se comprueba que las dos alternativas implicadas
+sean las mejores en ese punto):
+
+- $d_3$ frente a $d_1$: $85 = 70 + 55\alpha \Rightarrow \alpha = 15/55 \approx 0{,}273$
+- $d_1$ frente a $d_4$: $70 + 55\alpha = 40 + 105\alpha \Rightarrow \alpha = 30/50 = 0{,}6$
+
+```{r intervalos-1a}
+res1a <- dibuja.criterio.Hurwicz_Intervalos(dat1a, favorable = TRUE, mostrarGrafico = FALSE)
+res1a$IntervalosAlfa
+res1a$PuntosDeCorte
+res1a$AltOptimas
+```
+
+```{r grafico-1a}
+dibuja.criterio.Hurwicz_Intervalos(dat1a, favorable = TRUE)
+```
+
+**Conclusión.** La decisión con Hurwicz depende del grado de optimismo $\alpha$:
+
+- $0 < \alpha < 0{,}273$: es óptima $d_3$ (la decisión "segura", con 85 en los tres estados);
+- $0{,}273 < \alpha < 0{,}6$: es óptima $d_1$;
+- $0{,}6 < \alpha < 1$: es óptima $d_4$ (la de mayor potencial, $d_4$ sólo sale bien si la
+  demanda es alta).
+
+Es decir, **cuanto más optimista es el decisor, más se acerca a $d_4$** (la alternativa con mayor
+potencial, pero también con el peor peor caso: 40).
+
+## Apartado (b): situación desfavorable
+
+En esta situación los valores son **costes**, de modo que todos los criterios se **minimizan**.
+La función `criterio.Hurwicz` invierte automáticamente los pesos: en situación desfavorable
+calcula $H_i(\alpha) = (1-\alpha) M_i + \alpha W_i$ y busca el **mínimo**.
+
+### 1. Criterio de Wald (minimax)
+
+**Idea.** Se toma el **peor caso** (el coste más alto, es decir el máximo de la fila) y se
+elige la alternativa con el menor de esos peores casos.
+
+$$
+W_i = \max_j\, x_{ij}, \qquad d^* = \arg\min_i W_i
+$$
+
+**Cálculo manual.** Peor caso (coste máximo) de cada alternativa:
+
+- $d_1$: $\max(250, 300, 340) = 340$
+- $d_2$: $\max(220, 280, 400) = 400$
+- $d_3$: $\max(300, 260, 310) = 310$
+- $d_4$: $\max(400, 230, 290) = 400$
+
+El menor es $310$, luego **la alternativa óptima es $d_3$**.
+
+```{r wald-1b}
+res <- criterio.Wald(dat1b, favorable = FALSE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 2. Criterio Optimista (minimin)
+
+**Idea.** Se toma el **mejor caso** (el coste más bajo, es decir el mínimo de la fila) y se
+elige la alternativa con el menor de esos mejores casos.
+
+$$
+M_i = \min_j\, x_{ij}, \qquad d^* = \arg\min_i M_i
+$$
+
+**Cálculo manual.** Mejor caso (coste mínimo) de cada alternativa:
+
+- $d_1$: $\min(250, 300, 340) = 250$
+- $d_2$: $\min(220, 280, 400) = 220$
+- $d_3$: $\min(300, 260, 310) = 260$
+- $d_4$: $\min(400, 230, 290) = 230$
+
+El menor es $220$, luego **la alternativa óptima es $d_2$**.
+
+```{r optimista-1b}
+res <- criterio.Optimista(dat1b, favorable = FALSE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 3. Criterio de Hurwicz ($\alpha = 0{,}3$)
+
+**Idea.** Igual que en el apartado (a), pero minimizando y con los pesos invertidos:
+$H_i(\alpha) = (1-\alpha)\,M_i + \alpha\,W_i$, donde ahora $M_i$ es el **mínimo** de la fila
+(el mejor coste) y $W_i$ es el **máximo** de la fila (el peor coste).
+
+**Cálculo manual** con $\alpha = 0{,}3$:
+
+- $d_1$: $0{,}7 \cdot 340 + 0{,}3 \cdot 250 = 238 + 75 = 313$
+- $d_2$: $0{,}7 \cdot 400 + 0{,}3 \cdot 220 = 280 + 66 = 346$
+- $d_3$: $0{,}7 \cdot 310 + 0{,}3 \cdot 260 = 217 + 78 = 295$
+- $d_4$: $0{,}7 \cdot 400 + 0{,}3 \cdot 230 = 280 + 69 = 349$
+
+El menor valor es $295$, luego **la alternativa óptima es $d_3$**.
+
+```{r hurwicz-1b}
+res <- criterio.Hurwicz(dat1b, alfa = 0.3, favorable = FALSE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 4. Criterio de Savage (minimax del regret)
+
+**Idea.** En costes, el regret es $r_{ij} = x_{ij} - \min_i x_{ij}$ (cuánto se *"pierde"* frente
+a la alternativa más barata de cada estado). Luego se aplica minimax a esa matriz.
+
+**Cálculo manual.** Mejor (menor) coste en cada estado:
+
+- $e_1$: $\min(250, 220, 300, 400) = 220$ ($d_2$)
+- $e_2$: $\min(300, 280, 260, 230) = 230$ ($d_4$)
+- $e_3$: $\min(340, 400, 310, 290) = 290$ ($d_4$)
+
+Matriz de regret:
+
+| | $e_1$ | $e_2$ | $e_3$ | Máx. regret |
+|:--|------:|------:|------:|------------:|
+| $d_1$ | $250-220=30$ | $300-230=70$ | $340-290=50$ | **70** |
+| $d_2$ | $220-220=0$ | $280-230=50$ | $400-290=110$ | **110** |
+| $d_3$ | $300-220=80$ | $260-230=30$ | $310-290=20$ | **80** |
+| $d_4$ | $400-220=180$ | $230-230=0$ | $290-290=0$ | **180** |
+
+El menor de los máximos de regret es $70$, luego **la alternativa óptima es $d_1$**.
+
+```{r savage-1b}
+res <- criterio.Savage(dat1b, favorable = FALSE)
+res$Mejores
+res$Pesos
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 5. Criterio de Laplace (equiprobabilidad)
+
+**Idea.** Igual que en beneficios, pero se elige la **menor** media.
+
+**Cálculo manual.** Media de cada alternativa:
+
+- $d_1$: $(250 + 300 + 340)/3 = 890/3 \approx 296{,}67$
+- $d_2$: $(220 + 280 + 400)/3 = 900/3 = 300$
+- $d_3$: $(300 + 260 + 310)/3 = 870/3 = 290$
+- $d_4$: $(400 + 230 + 290)/3 = 920/3 \approx 306{,}67$
+
+La menor media es $290$, luego **la alternativa óptima es $d_3$**.
+
+```{r laplace-1b}
+res <- criterio.Laplace(dat1b, favorable = FALSE)
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 6. Criterio del Punto Ideal
+
+**Idea.** El punto ideal en costes es el **menor** valor posible en cada estado, y se elige la
+alternativa más cercana a él.
+
+**Cálculo manual.** Punto ideal: $x^* = (220, 230, 290)$. Distancias:
+
+- $d_1$: $\sqrt{30^2 + 70^2 + 50^2} = \sqrt{900+4900+2500} = \sqrt{8300} \approx 91{,}10$
+- $d_2$: $\sqrt{0^2 + 50^2 + 110^2} = \sqrt{2500+12100} = \sqrt{14600} \approx 120{,}83$
+- $d_3$: $\sqrt{80^2 + 30^2 + 20^2} = \sqrt{6400+900+400} = \sqrt{7700} \approx 87{,}75$
+- $d_4$: $\sqrt{180^2 + 0^2 + 0^2} = 180$
+
+La menor distancia es $87{,}75$, luego **la alternativa óptima es $d_3$**.
+
+```{r puntoideal-1b}
+res <- criterio.PuntoIdeal(dat1b, favorable = FALSE)
+res$Mejores
+res$ValorAlternativas
+res$AlternativaOptima
+res$ValorOptimo
+```
+
+### 7. Votación de los criterios (apartado b)
+
+```{r votacion-1b}
+cri <- list(Wald      = criterio.Wald(dat1b, FALSE)$AlternativaOptima,
+            Optimista = criterio.Optimista(dat1b, FALSE)$AlternativaOptima,
+            Hurwicz   = criterio.Hurwicz(dat1b, 0.3, FALSE)$AlternativaOptima,
+            Savage    = criterio.Savage(dat1b, FALSE)$AlternativaOptima,
+            Laplace   = criterio.Laplace(dat1b, FALSE)$AlternativaOptima,
+            PuntoIdeal= criterio.PuntoIdeal(dat1b, FALSE)$AlternativaOptima)
+data.frame(Criterio = names(cri), Alternativa = as.character(cri))
+```
+
+| Criterio | Alternativa óptima |
+|:---------|:--------------------|
+| Wald | $d_3$ |
+| Optimista | $d_2$ |
+| Hurwicz ($\alpha=0{,}3$) | $d_3$ |
+| Savage | $d_1$ |
+| Laplace | $d_3$ |
+| Punto Ideal | $d_3$ |
+
+**Conclusión del apartado (b).** La alternativa $d_3$ es óptima con **cuatro** de los seis
+criterios (Wald, Hurwicz, Laplace y Punto Ideal) y es la más veces óptima. Savage se decanta
+por $d_1$ y el optimista por $d_2$. Por tanto, si lo que se busca es minimizar el coste con
+rasgo de prudencia, la delegación debería abrirse en la ciudad **$d_3$**.
+
+### 8. Hurwicz en todo el rango $\alpha \in (0,1)$
+
+En situación desfavorable las rectas son $H_i(\alpha) = (1-\alpha)M_i + \alpha W_i$, con
+$M_i$ = mínimo de la fila y $W_i$ = máximo de la fila:
+
+- $d_1$: $H_1(\alpha) = 340 - 90\alpha$
+- $d_2$: $H_2(\alpha) = 400 - 180\alpha$
+- $d_3$: $H_3(\alpha) = 310 - 50\alpha$
+- $d_4$: $H_4(\alpha) = 400 - 170\alpha$
+
+Corte relevante: $d_3$ frente a $d_2$:
+$310 - 50\alpha = 400 - 180\alpha \Rightarrow 130\alpha = 90 \Rightarrow \alpha \approx 0{,}692$.
+
+```{r intervalos-1b}
+res1b <- dibuja.criterio.Hurwicz_Intervalos(dat1b, favorable = FALSE, mostrarGrafico = FALSE)
+res1b$IntervalosAlfa
+res1b$PuntosDeCorte
+res1b$AltOptimas
+```
+
+```{r grafico-1b}
+dibuja.criterio.Hurwicz_Intervalos(dat1b, favorable = FALSE)
+```
+
+**Conclusión.** Con $\alpha < 0{,}692$ (decisor poco optimista) la alternativa óptima es $d_3$;
+con $\alpha > 0{,}692$ (decisor muy optimista, que da mucho peso a que la demanda sea alta)
+la alternativa óptima pasa a ser $d_2$.
+
+## Respuestas verdaderas (Problema 1)
+
+| Nº | Afirmación | Respuesta |
+|:--|:------------|:----------|
+| 1 | En el apartado (a), Wald determina como óptima $d_3$ | **VERDADERO** |
+| 2 | En el apartado (a), Laplace determina como óptima $d_4$ | **FALSO** (la óptima es $d_1$, con media $\approx 96{,}67$; $d_4$ tiene la menor media, $\approx 81{,}67$) |
+| 3 | En el apartado (b), Savage determina como óptima $d_1$ | **VERDADERO** |
+| 4 | En el apartado (b), $d_2$ es óptima con Hurwicz para todo $\alpha \in (0,1]$ | **FALSO** ($d_2$ sólo es óptima cuando $\alpha > 0{,}692$; para $\alpha < 0{,}692$ lo es $d_3$) |
+| 5 | En el apartado (b), $d_3$ es la óptima con más criterios (4 de 6) | **VERDADERO** |
+
+# Problema 2: gestión de la flota de reparto
+
+## Enunciado
+
+Una **empresa española de distribución de alimentación congelada** debe decidir **cómo gestionar
+su flota de reparto** en el área metropolitana en la que opera:
+
+- $d_1$: **flota propia** (camionetas frigoríficas de la empresa y conductores de plantilla);
+- $d_2$: **renting** (camionetas en régimen de alquiler a largo plazo con un conductor de
+  seguridad externo);
+- $d_3$: **subcontratación** del reparto a empresas de transporte.
+
+Los tres **estados de la naturaleza** son los escenarios de **demanda**: $e_1$ (baja), $e_2$
+(media) y $e_3$ (alta). El **coste anual total** (€) de cada alternativa en cada escenario es:
+
+| Alternativa | $e_1$ (demanda baja) | $e_2$ (demanda media) | $e_3$ (demanda alta) |
+|:------------|----------------------:|-----------------------:|----------------------:|
+| $d_1$ Flota propia | 320 000 | 380 000 | 450 000 |
+| $d_2$ Renting | 300 000 | 330 000 | 420 000 |
+| $d_3$ Subcontratación | 250 000 | 400 000 | 600 000 |
+
+## Resolución con `criterio.Todos`
+
+Esta vez se resuelve **toda la tabla de una vez** con la función `criterio.Todos`, que aplica
+los seis criterios y devuelve una única tabla con la decisión, el valor que cada criterio
+asigna a cada alternativa y la alternativa óptima de cada criterio, además del recuento de
+"veces óptima".
+
+```{r problema2-datos}
+dat2 <- crea.tablaX(c(320000, 380000, 450000,
+                      300000, 330000, 420000,
+                      250000, 400000, 600000),
+                    numalternativas = 3,
+                    numestados = 3,
+                    nb_alternativas = c("Flota propia", "Renting", "Subcontratacion"),
+                    nb_estados = c("Demanda baja", "Demanda media", "Demanda alta"))
+dat2
+```
+
+```{r problema2-todos}
+res2 <- criterio.Todos(dat2, alfa = 0.5, favorable = FALSE)
+res2
+```
+
+## Interpretación de la tabla, criterio a criterio
+
+```{r problema2-desglose}
+data.frame(
+  Criterio = c("Wald", "Optimista", "Hurwicz (a=0.5)", "Savage", "Laplace", "Punto Ideal"),
+  Valor  = c(criterio.Wald(dat2, FALSE)$ValorOptimo,
+             criterio.Optimista(dat2, FALSE)$ValorOptimo,
+             criterio.Hurwicz(dat2, 0.5, FALSE)$ValorOptimo,
+             criterio.Savage(dat2, FALSE)$ValorOptimo,
+             criterio.Laplace(dat2, FALSE)$ValorOptimo,
+             criterio.PuntoIdeal(dat2, FALSE)$ValorOptimo),
+  Alternativa = c("Renting", "Subcontratacion", "Renting", "Renting", "Renting", "Renting"))
+```
+
+| Criterio | Cálculo | Alternativa óptima |
+|:---------|:--------|:--------------------|
+| **Wald** (pesimista) | Se toma el coste máximo de cada fila y se elige el menor: $d_1=450\,000$, $d_2=420\,000$, $d_3=600\,000$ → el menor es $420\,000$ | **Renting** ($d_2$) |
+| **Optimista** | Se toma el coste mínimo de cada fila y se elige el menor: $d_1=320\,000$, $d_2=300\,000$, $d_3=250\,000$ → el menor es $250\,000$ | **Subcontratación** ($d_3$) |
+| **Hurwicz** ($\alpha=0{,}5$) | $H_i = 0{,}5 M_i + 0{,}5 W_i$: $d_1=385\,000$, $d_2=360\,000$, $d_3=425\,000$ → el menor es $360\,000$ | **Renting** ($d_2$) |
+| **Savage** (regret) | Regret $r_{ij}=x_{ij}-\min_i x_{ij}$; máximos de regret: $d_1=70\,000$, $d_2=50\,000$, $d_3=180\,000$ → el menor es $50\,000$ | **Renting** ($d_2$) |
+| **Laplace** | Medias: $d_1\approx383\,333$, $d_2=350\,000$, $d_3\approx416\,667$ → la menor es $350\,000$ | **Renting** ($d_2$) |
+| **Punto Ideal** | Punto ideal $(250\,000,\ 330\,000,\ 420\,000)$; distancias: $d_1\approx91\,104$, $d_2=50\,000$, $d_3\approx193\,132$ → la menor es $50\,000$ | **Renting** ($d_2$) |
+
+**Votación.** La columna *"Veces Optima"* de la tabla anterior resume el recuento:
+
+| Alternativa | Veces óptima |
+|:------------|--------------:|
+| Flota propia ($d_1$) | 0 |
+| Renting ($d_2$) | **5** |
+| Subcontratación ($d_3$) | 1 |
+
+## Interpretación económica
+
+La tabla de costes tiene una lectura muy clara:
+
+- **Flota propia** ($d_1$): coste **estable** (entre 320 000 y 450 000 €) pero **siempre
+  intermedio**. Nunca es la mejor ni la peor opción, y por eso **no la elige ningún criterio**.
+- **Renting** ($d_2$): coste bajo y **muy estable** en los tres escenarios (300 000 – 420 000
+  €). **Domina a la flota propia**, porque es más barato que ella en los **tres** estados de la
+  naturaleza, y es la **más barata en el escenario de demanda media**. No llega a dominar a la
+  subcontratación, a la que gana en los escenarios de demanda media y alta, pero frente a ella
+  **nunca es la alternativa más cara**.
+- **Subcontratación** ($d_3$): es la **más barata si la demanda es baja** (250 000 €), pero su
+  coste **se dispara con la demanda** (600 000 € con demanda alta), porque en el pico de pedidos
+  hay que pagar horas extra y penalizaciones a los transportistas. Sólo el criterio **Optimista**
+  la elige, porque ese criterio mira exclusivamente el escenario más favorable.
+
+**Recomendación.** La dirección debería **elegir el renting ($d_2$)**: es la alternativa más
+barata en los escenarios de demanda **media** y **alta**, es más barata que la flota propia en
+**todos** los escenarios, y **ningún** criterio salvo el optimista se decanta por otra opción.
+Es por tanto la decisión **robusta**: sólo un decisor **extremadamente optimista** (que mire
+únicamente el mejor escenario) elegiría la subcontratación. La subcontratación sólo sería
+conveniente si la dirección tuviera **mucha confianza** en que la demanda se mantendría baja.
+
+## Hurwicz en todo el rango $\alpha \in (0,1)$
+
+Las rectas de Hurwicz (situación desfavorable) son:
+
+- $d_1$: $H_1(\alpha) = (1-\alpha)\,450\,000 + \alpha\,320\,000 = 450\,000 - 130\,000\,\alpha$
+- $d_2$: $H_2(\alpha) = (1-\alpha)\,420\,000 + \alpha\,300\,000 = 420\,000 - 120\,000\,\alpha$
+- $d_3$: $H_3(\alpha) = (1-\alpha)\,600\,000 + \alpha\,250\,000 = 600\,000 - 350\,000\,\alpha$
+
+Corte entre $d_2$ y $d_3$:
+
+$$
+420\,000 - 120\,000\alpha = 600\,000 - 350\,000\alpha
+\;\Rightarrow\; 230\,000\alpha = 180\,000 \;\Rightarrow\; \alpha = \frac{18}{23} \approx 0{,}783
+$$
+
+```{r intervalos-2}
+res2dib <- dibuja.criterio.Hurwicz_Intervalos(dat2, favorable = FALSE, mostrarGrafico = FALSE)
+res2dib$IntervalosAlfa
+res2dib$PuntosDeCorte
+res2dib$AltOptimas
+```
+
+```{r grafico-2}
+dibuja.criterio.Hurwicz_Intervalos(dat2, favorable = FALSE)
+```
+
+**Conclusión.**
+
+- $0 < \alpha < 0{,}783$: la alternativa óptima es el **renting** ($d_2$).
+- $0{,}783 < \alpha < 1$: la alternativa óptima pasa a ser la **subcontratación** ($d_3$).
+
+El punto de corte $\alpha \approx 0{,}783$ significa que la decisión sólo cambiaría si el
+decisor fuese **extremadamente optimista** (daría un peso del 78 % al mejor escenario frente al
+peor). La **flota propia** ($d_1$) no es óptima **para ningún valor** de $\alpha$, lo que
+confirma que es una alternativa **dominada**.
+
+## Respuestas verdaderas (Problema 2)
+
+| Nº | Afirmación | Respuesta |
+|:--|:------------|:----------|
+| 1 | El criterio de Wald recomienda el renting ($d_2$) | **VERDADERO** (Wald da $420\,000$ € frente a $450\,000$ € de $d_1$ y $600\,000$ € de $d_3$) |
+| 2 | El criterio de Laplace recomienda la flota propia ($d_1$) | **FALSO** (Laplace recomienda el renting, con media $350\,000$ €; $d_1$ tiene la media más alta, $\approx 383\,333$ €) |
+| 3 | El criterio Optimista recomienda la subcontratación ($d_3$) | **VERDADERO** (con demanda baja la subcontratación cuesta $250\,000$ €, el mínimo de la tabla) |
+| 4 | Con Hurwicz, la subcontratación es óptima para todo $\alpha \in (0,1]$ | **FALSO** (sólo lo es cuando $\alpha > 0{,}783$; para $\alpha < 0{,}783$ lo es el renting) |
+| 5 | La flota propia ($d_1$) no es la alternativa óptima con ningún criterio | **VERDADERO** (0 veces óptima; está dominada por el renting en los tres estados) |
+
+# Resumen final
+
+| Problema | Criterio | Alternativa óptima |
+|:---------|:---------|:--------------------|
+| 1(a) — beneficios | Wald | $d_3$ |
+| 1(a) — beneficios | Optimista | $d_4$ |
+| 1(a) — beneficios | Hurwicz ($\alpha=0{,}3$) | $d_1$ |
+| 1(a) — beneficios | Savage | $d_1$ |
+| 1(a) — beneficios | Laplace | $d_1$ |
+| 1(a) — beneficios | Punto Ideal | $d_1$ |
+| 1(a) — **más veces óptima** | — | **$d_1$ (4 de 6)** |
+| 1(b) — costes | Wald | $d_3$ |
+| 1(b) — costes | Optimista | $d_2$ |
+| 1(b) — costes | Hurwicz ($\alpha=0{,}3$) | $d_3$ |
+| 1(b) — costes | Savage | $d_1$ |
+| 1(b) — costes | Laplace | $d_3$ |
+| 1(b) — costes | Punto Ideal | $d_3$ |
+| 1(b) — **más veces óptima** | — | **$d_3$ (4 de 6)** |
+| 2 — costes (real) | Wald | Renting ($d_2$) |
+| 2 — costes (real) | Optimista | Subcontratación ($d_3$) |
+| 2 — costes (real) | Hurwicz ($\alpha=0{,}5$) | Renting ($d_2$) |
+| 2 — costes (real) | Savage | Renting ($d_2$) |
+| 2 — costes (real) | Laplace | Renting ($d_2$) |
+| 2 — costes (real) | Punto Ideal | Renting ($d_2$) |
+| 2 — costes (real) | **más veces óptima** | **Renting ($d_2$), 5 de 6** |
+
+**Puntos de corte del criterio de Hurwicz**
+
+| Problema | Puntos de corte | Alternativa óptima en cada tramo |
+|:---------|:----------------|:----------------------------------|
+| 1(a) | $\alpha \approx 0{,}273$ y $\alpha = 0{,}6$ | $d_3$ $(0,\,0{,}273)$; $d_1$ $(0{,}273,\,0{,}6)$; $d_4$ $(0{,}6,\,1)$ |
+| 1(b) | $\alpha \approx 0{,}692$ | $d_3$ $(0,\,0{,}692)$; $d_2$ $(0{,}692,\,1)$ |
+| 2 | $\alpha \approx 0{,}783$ | Renting $(0,\,0{,}783)$; Subcontratación $(0{,}783,\,1)$ |
